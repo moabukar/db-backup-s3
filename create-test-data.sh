@@ -1,5 +1,6 @@
 #!/bin/bash
-# Create realistic test data to verify backup quality
+
+# sample data
 
 kubectl exec -it deployment/postgres-replica -- psql -U root -d langfuse << 'EOF'
 -- Create tables similar to a real application

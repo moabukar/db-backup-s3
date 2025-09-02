@@ -4,7 +4,7 @@ metadata:
   name: rds-backup-job-local
   namespace: default
 spec:
-  schedule: "*/5 * * * *"   # Every 5 minutes for testing
+  schedule: "*/5 * * * *"   # every 5 minutes for testing
   concurrencyPolicy: Forbid
   jobTemplate:
     spec:

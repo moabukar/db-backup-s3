@@ -46,7 +46,7 @@ spec:
   selector:
     app: postgres-primary
 ---
-# Read replica simulation (same as primary for testing)
+# read replica simulation (same as primary for testing)
 apiVersion: apps/v1
 kind: Deployment
 metadata:

@@ -1,9 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 
-echo "🚀 Setting up LocalStack S3 for backup testing..."
+echo "Setting up LocalStack S3 for backup testing..."
 
-# Wait for LocalStack to be ready
 echo "⏳ Waiting for LocalStack to start..."
 while ! curl -s http://localhost:4566/health > /dev/null; do
   sleep 2
@@ -11,17 +10,16 @@ done
 
 echo "✅ LocalStack is ready"
 
-# Configure AWS CLI for LocalStack
+# config aws cli
 export AWS_ACCESS_KEY_ID=test
 export AWS_SECRET_ACCESS_KEY=test
 export AWS_DEFAULT_REGION=us-east-1
 export AWS_ENDPOINT_URL=http://localhost:4566
 
-# Create S3 bucket
-echo "📦 Creating S3 bucket..."
+echo "Creating S3 bucket..."
 awslocal s3 mb s3://rds-db-backups-co-create
 
-# Create lifecycle policy
+# lifecycle policy for s3
 cat > lifecycle-policy.json << EOF
 {
   "Rules": [

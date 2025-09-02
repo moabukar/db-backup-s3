@@ -16,15 +16,15 @@ spec:
             - |
               set -euo pipefail
               
-              echo "🚀 Starting simple backup test..."
+              echo "Starting simple backup test..."
               
-              # Set up database connection
+              # set up database connection
               export PGPASSWORD="testpassword123"
               DB_HOST="postgres-replica-service.default.svc.cluster.local"
               
-              echo "📊 Testing database connection to: $DB_HOST"
+              echo "Testing database connection to: $DB_HOST"
               
-              # Test connection
+              # test connection
               if pg_isready -h $DB_HOST -p 5432 -U root; then
                   echo "✅ Database connection OK"
               else
@@ -33,7 +33,7 @@ spec:
               fi
               
               # Check what's in the database
-              echo "📋 Database contents:"
+              echo "Database contents:"
               psql -h $DB_HOST -U root -d langfuse -c "SELECT count(*) as records FROM test_backup;"
               
               # Test pg_dump options
@@ -59,12 +59,12 @@ spec:
               apt-get update && apt-get install -y curl
               
               # Test LocalStack connectivity from pod
-              echo "🌐 Testing LocalStack connectivity..."
+              echo "Testing LocalStack connectivity..."
               if curl -s http://host.docker.internal:4566/health; then
                   echo "✅ LocalStack reachable from pod"
               else
                   echo "❌ Cannot reach LocalStack from pod"
-                  echo "💡 Checking all possible endpoints..."
+                  echo "Checking all possible endpoints..."
                   curl -s http://localhost:4566/health || echo "localhost failed"
                   curl -s http://localstack:4566/health || echo "localstack failed"
                   curl -s http://172.17.0.1:4566/health || echo "docker bridge failed"
