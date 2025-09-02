@@ -1,4 +1,5 @@
 #!/bin/bash
+
 set -euo pipefail
 
 echo "Setting up LocalStack S3 for backup testing..."
