@@ -1,0 +1,93 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: rds-backup-job-local
+  namespace: default
+spec:
+  schedule: "*/5 * * * *"   # Every 5 minutes for testing
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: rds-backup
+              image: postgres:15
+              command:
+                - /bin/bash
+                - -c
+                - |
+                  set -euo pipefail
+                  
+                  # Install AWS CLI in container (user-writable path)
+                  apt-get update && apt-get install -y curl unzip
+                  curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+                  unzip -q awscliv2.zip
+                  ./aws/install --bin-dir /usr/local/bin --install-dir /tmp/aws-cli --update
+                  
+                  # Set up environment for LocalStack
+                  export PGPASSWORD=$(cat /secrets/db-password)
+                  export AWS_ACCESS_KEY_ID=$(cat /aws-secrets/aws-access-key-id)
+                  export AWS_SECRET_ACCESS_KEY=$(cat /aws-secrets/aws-secret-access-key)
+                  export AWS_DEFAULT_REGION=us-east-1
+                  export AWS_ENDPOINT_URL=http://host.docker.internal:4566
+                  
+                  TIMESTAMP=$(date +%F-%H-%M-%S)
+                  
+                  echo "🚀 Starting LOCAL backup test at $(date)"
+                  echo "📊 Target: ${RDS_REPLICA_HOST}"
+                  echo "📦 LocalStack S3: s3://rds-db-backups-co-create"
+                  
+                  # Test database connection
+                  pg_isready -h $RDS_REPLICA_HOST -p 5432 -U root
+                  
+                  if [ $? -ne 0 ]; then
+                    echo "❌ Cannot connect to database"
+                    exit 1
+                  fi
+                  
+                  echo "✅ Database connection verified"
+                  
+                  # Stream backup directly to LocalStack S3
+                  echo "🔄 Starting streaming backup to LocalStack..."
+                  pg_dump -h $RDS_REPLICA_HOST -U root -p 5432 \
+                    --format=custom \
+                    --large-objects \
+                    --verbose \
+                    --no-password \
+                    langfuse \
+                  | aws s3 cp - s3://rds-db-backups-co-create/$TIMESTAMP/langfuse_backup.dump \
+                      --endpoint-url http://host.docker.internal:4566
+                  
+                  if [ $? -eq 0 ]; then
+                    echo "✅ Successfully backed up to LocalStack S3!"
+                    
+                    # Verify upload in LocalStack
+                    aws s3 ls s3://rds-db-backups-co-create/$TIMESTAMP/ \
+                      --endpoint-url http://host.docker.internal:4566 \
+                      --human-readable
+                  else
+                    echo "❌ Backup failed"
+                    exit 1
+                  fi
+                  
+                  echo "🎉 LOCAL backup test completed at $(date)"
+                  unset PGPASSWORD
+              env:
+                - name: RDS_REPLICA_HOST
+                  value: "postgres-replica-service.default.svc.cluster.local"
+              volumeMounts:
+                - name: db-secrets
+                  mountPath: /secrets
+                  readOnly: true
+                - name: aws-secrets
+                  mountPath: /aws-secrets
+                  readOnly: true
+          volumes:
+            - name: db-secrets
+              secret:
+                secretName: rds-db-root-secret
+            - name: aws-secrets
+              secret:
+                secretName: aws-credentials

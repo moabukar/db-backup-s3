@@ -1,0 +1,16 @@
+version: '3.8'
+services:
+  localstack:
+    container_name: localstack
+    image: localstack/localstack:3.0
+    ports:
+      - "4566:4566"          
+      - "4510-4559:4510-4559"  
+    environment:
+      - DEBUG=1
+      - SERVICES=s3,iam,sts
+      - DOCKER_HOST=unix:///var/run/docker.sock
+      - HOST_TMP_FOLDER=${TMPDIR:-/tmp/}localstack
+    volumes:
+      - "${TMPDIR:-/tmp}/localstack:/var/lib/localstack"
+      - "/var/run/docker.sock:/var/run/docker.sock"
