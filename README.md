@@ -25,3 +25,27 @@ Available targets:
 
 Quick start: make setup && make test-working && make verify
 ```
+
+
+## Known commands
+
+```bash
+# localstack conf (fake creds :) )
+export AWS_ACCESS_KEY_ID=test
+export AWS_SECRET_ACCESS_KEY=test
+export AWS_DEFAULT_REGION=us-east-1
+
+# list all backups
+awslocal s3 ls s3://rds-db-backups-co-create/ --recursive --human-readable
+
+# list just the backup folders
+awslocal s3 ls s3://rds-db-backups-co-create/
+
+# check a specific backup folder (replace with your timestamp)
+awslocal s3 ls s3://rds-db-backups-co-create/2025-09-02-09-10/ --human-readable
+
+# get file details for a specific backup
+awslocal s3api head-object \
+  --bucket rds-db-backups-co-create \
+  --key "2025-09-02-09-10/langfuse_backup.dump"
+```
