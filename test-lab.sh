@@ -50,7 +50,7 @@ kubectl exec deployment/postgres-replica -- psql -U root -d postgres -tc "SELECT
   kubectl exec deployment/postgres-replica -- psql -U root -d postgres -c "CREATE DATABASE langfuse;"
 
 kubectl exec deployment/postgres-replica -- psql -U root -d langfuse -c "
-CREATE TABLE test_backup (
+CREATE TABLE IF NOT EXISTS test_backup (
   id SERIAL PRIMARY KEY,
   name VARCHAR(100),
   created_at TIMESTAMP DEFAULT NOW()

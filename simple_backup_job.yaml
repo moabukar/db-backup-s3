@@ -1,0 +1,75 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: simple-backup-test
+  namespace: default
+spec:
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: rds-backup
+          image: postgres:15
+          command:
+            - /bin/bash
+            - -c
+            - |
+              set -euo pipefail
+              
+              echo "🚀 Starting simple backup test..."
+              
+              # Set up database connection
+              export PGPASSWORD="testpassword123"
+              DB_HOST="postgres-replica-service.default.svc.cluster.local"
+              
+              echo "📊 Testing database connection to: $DB_HOST"
+              
+              # Test connection
+              if pg_isready -h $DB_HOST -p 5432 -U root; then
+                  echo "✅ Database connection OK"
+              else
+                  echo "❌ Cannot connect to database"
+                  exit 1
+              fi
+              
+              # Check what's in the database
+              echo "📋 Database contents:"
+              psql -h $DB_HOST -U root -d langfuse -c "SELECT count(*) as records FROM test_backup;"
+              
+              # Test pg_dump options
+              echo "🔧 Testing pg_dump..."
+              pg_dump --version
+              
+              # Try simple backup (no S3 first, just test pg_dump)
+              echo "🔄 Testing pg_dump streaming (to /dev/null)..."
+              pg_dump -h $DB_HOST -U root -p 5432 \
+                --format=custom \
+                --verbose \
+                --no-password \
+                langfuse > /tmp/test.dump
+              
+              # Check dump size
+              ls -lh /tmp/test.dump
+              echo "✅ pg_dump works! File size: $(du -h /tmp/test.dump | cut -f1)"
+              
+              # Now try with simple AWS CLI (using curl instead of full AWS CLI)
+              echo "🔄 Testing S3 upload simulation..."
+              
+              # Install curl for HTTP testing
+              apt-get update && apt-get install -y curl
+              
+              # Test LocalStack connectivity from pod
+              echo "🌐 Testing LocalStack connectivity..."
+              if curl -s http://host.docker.internal:4566/health; then
+                  echo "✅ LocalStack reachable from pod"
+              else
+                  echo "❌ Cannot reach LocalStack from pod"
+                  echo "💡 Checking all possible endpoints..."
+                  curl -s http://localhost:4566/health || echo "localhost failed"
+                  curl -s http://localstack:4566/health || echo "localstack failed"
+                  curl -s http://172.17.0.1:4566/health || echo "docker bridge failed"
+              fi
+              
+              echo "🎉 Basic test completed!"
+              
+              unset PGPASSWORD

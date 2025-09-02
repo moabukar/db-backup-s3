@@ -20,11 +20,9 @@ spec:
                 - |
                   set -euo pipefail
                   
-                  # Install AWS CLI in container (user-writable path)
-                  apt-get update && apt-get install -y curl unzip
-                  curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-                  unzip -q awscliv2.zip
-                  ./aws/install --bin-dir /usr/local/bin --install-dir /tmp/aws-cli --update
+                  # Install AWS CLI via pip to avoid ELF/rosetta incompatibilities
+                  apt-get update && apt-get install -y python3-pip
+                  pip3 install --no-cache-dir awscli
                   
                   # Set up environment for LocalStack
                   export PGPASSWORD=$(cat /secrets/db-password)
@@ -49,28 +47,32 @@ spec:
                   
                   echo "✅ Database connection verified"
                   
-                  # Stream backup directly to LocalStack S3
-                  echo "🔄 Starting streaming backup to LocalStack..."
+                  # Stream to file first to avoid AWS CLI "x-amz-trailer" issue in LocalStack
+                  echo "🔄 Creating dump file..."
+                  TMP_DIR=/tmp/rds-backups
+                  mkdir -p "$TMP_DIR"
+                  DUMP_FILE="$TMP_DIR/langfuse_backup.dump"
+
                   pg_dump -h $RDS_REPLICA_HOST -U root -p 5432 \
                     --format=custom \
-                    --large-objects \
+                    --blobs \
                     --verbose \
                     --no-password \
                     langfuse \
-                  | aws s3 cp - s3://rds-db-backups-co-create/$TIMESTAMP/langfuse_backup.dump \
-                      --endpoint-url http://host.docker.internal:4566
-                  
-                  if [ $? -eq 0 ]; then
-                    echo "✅ Successfully backed up to LocalStack S3!"
-                    
-                    # Verify upload in LocalStack
-                    aws s3 ls s3://rds-db-backups-co-create/$TIMESTAMP/ \
-                      --endpoint-url http://host.docker.internal:4566 \
-                      --human-readable
-                  else
-                    echo "❌ Backup failed"
-                    exit 1
-                  fi
+                    -f "$DUMP_FILE"
+
+                  echo "☁️ Uploading dump via s3api put-object..."
+                  aws s3api put-object \
+                    --bucket rds-db-backups-co-create \
+                    --key $TIMESTAMP/langfuse_backup.dump \
+                    --body "$DUMP_FILE" \
+                    --endpoint-url http://host.docker.internal:4566
+
+                  echo "✅ Successfully backed up to LocalStack S3!"
+                  # Verify upload in LocalStack
+                  aws s3 ls s3://rds-db-backups-co-create/$TIMESTAMP/ \
+                    --endpoint-url http://host.docker.internal:4566 \
+                    --human-readable
                   
                   echo "🎉 LOCAL backup test completed at $(date)"
                   unset PGPASSWORD
