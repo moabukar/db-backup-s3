@@ -40,10 +40,9 @@ test:
 
 deploy-cronjob:
 	@echo "Deploying CronJob for regular backups..."
-	@kubectl apply -f backup-cron.yaml
+	@kubectl apply -f working-backup-cronjob.yaml
 	@kubectl get cronjobs
 
-# manual cronjob test
 test-cronjob:
 	@echo "Testing CronJob manually..."
 	@kubectl create job --from=cronjob/rds-backup-cronjob manual-test-$(date +%s)
@@ -52,8 +51,8 @@ test-cronjob:
 test-working:
 	@echo "Running working backup test..."
 	kubectl apply -f backup-cron.yaml
-	kubectl logs -f job/manual-backup-test
-
+	# kubectl logs -f job/rds-backup-cronjob
+ 
 verify:
 	@echo "Verifying backup integrity..."
 	./verify-backup.sh
@@ -119,10 +118,9 @@ e2e: setup clean-jobs test-working verify
 	@echo "Backup: COMPLETED" 
 	@echo "Verify: COMPLETED"
 	@echo ""
-	@echo "Theory validation: PostgreSQL streaming backup to S3 works"
+	@echo "PostgreSQL streaming backup to S3 works"
 
-# quick restart (clean -> setup -> test)
-restart: cleanup setup test-working
+restart: cleanup setup test
 
 cleanup:
 	@echo "Cleaning up lab environment..."
@@ -136,7 +134,7 @@ cleanup:
 	@echo "Cleanup complete"
 
 # quick test cycle (setup -> test -> verify)
-quick: setup test-working verify
+quick: cleanup setup test-working verify
 
 help:
 	@echo "RDS Backup Test Makefile"
