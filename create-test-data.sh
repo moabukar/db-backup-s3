@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# sample data
+# sample data for testing
 
 kubectl exec -it deployment/postgres-replica -- psql -U root -d langfuse << 'EOF'
 -- Create tables similar to a real application
